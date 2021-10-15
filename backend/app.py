@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import boto3
+from werkzeug.wrappers import response
 import api 
+from response import *
 # from config import *
 
 app = Flask(__name__)
@@ -35,35 +37,38 @@ def h_check():
     print("start")
     return jsonify("check : True")
     
-@app.route('/dsapi')
-def aws():
-    result = {"response": ""}
-    elb_list = []
-    for account_name in session_dic:
-        elb_list.append({
-            "account_name" : account_name ,
-            "client" : session_dic[account_name].client(
-            service_name='elbv2'
-        )})
-    
-    return result
+
+@app.route('/test')
+def test():
+    print("test")
+    return jsonify(data)
+
+try:
+    account = request.args['account']
+except Exception as e:
+    account = "All"
+print("account: ", account)
+origin_elb = api.elb_class(session_dic,account)
+origin_elb.lookup()
 
 @app.route('/elb', methods=['GET','POST'])
 def elb_list():
-    try:
-        account = request.args['account']
-    except Exception as e:
-        account = "All"
-    elb = api.elb_class(session_dic,account)
+    elb = origin_elb
+    # try:
+    #     account = request.args['account']
+    # except Exception as e:
+    #     account = "All"
+    # elb = api.elb_class(session_dic,account)
     # all elb list
     if request.method == 'GET':
-        return jsonify(elb.lookup())
-    
-    # specific elb list
+        return jsonify(elb.result)
+    # refresh elb
     if request.method == 'POST': 
-        elb_name_list = request.form['elb_names']
-        return jsonify(elb.search(elb_name_list))
-
+        refresh_elb = api.elb_class(session_dic,account)
+        # elb_name_list = request.form['elb_names']
+        elb = refresh_elb
+        return jsonify(elb.lookup())
+        
 if __name__ == '__main__' :
     
 
